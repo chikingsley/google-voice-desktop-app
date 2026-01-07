@@ -201,9 +201,9 @@ function createWindow() {
 
     badgeGenerator = new BadgeGenerator(win);
 
-    win.webContents.on('new-window', function(e, url) {
-        e.preventDefault(); // Cancel the request to open the target URL in a new window
-
+    // Handle window open requests (e.g., links with target="_blank")
+    // Replaces deprecated 'new-window' event
+    win.webContents.setWindowOpenHandler(({ url }) => {
         // If the target URL is a Google Voice URL, have our main window navigate to it instead of opening
         // it in a new window.  This supports the ability to add additional accounts and switch between
         // them on-demand.  Otherwise, for all other URLs, have the system open them using the default type
@@ -212,12 +212,13 @@ function createWindow() {
         // stuck navigated somewhere that isn't the main Google Voice page, they can always use the "Reload"
         // item in the notification area icon context menu to get back to the Google Voice home page.
         const hostName = Url.parse(url).hostname;
-        if ( hostName === 'voice.google.com' || hostName === 'accounts.google.com') {
+        if (hostName === 'voice.google.com' || hostName === 'accounts.google.com') {
             win && win.loadURL(url);
         }
         else {
             shell.openExternal(url);
         }
+        return { action: 'deny' }; // Prevent opening a new window in all cases
     });
 
     // Whenever a request is made for the window to be closed, determine whether we should allow the close to
