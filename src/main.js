@@ -8,6 +8,7 @@ const path = require('path');
 const CSSInjector = require('./utils/cssInjector');
 const Store = require('electron-store');
 const Url = require('url');
+const { startServer } = require('./mcp-server');
 
 // Constants
 const store = new Store();
@@ -82,7 +83,10 @@ app.on('activate', () => {
 setInterval(updateNotifications.bind(this, app), REFRESH_RATE);
 
 app.dock && app.dock.setIcon(dockIcon);
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+    startServer(() => win); // Start server once with a getter for the window
+    createWindow();
+});
 
 // Creates and returns this application's main BrowserWindow, navigated to Google Voice.
 function createWindow() {

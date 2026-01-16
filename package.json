@@ -24,13 +24,13 @@
  },
  "scripts": {
   "start": "electron .",
-  "postinstall": "electron-builder install-app-deps",
-  "build:windows": "electron-builder --windows",
-  "build:mac": "electron-builder --mac",
-  "build:linux": "electron-builder --linux",
-  "build:x64": "electron-builder --mac --windows --linux --x64",
-  "build:arm64": "electron-builder --mac --windows --linux --arm64",
-  "release": "electron-builder --mac --windows --linux --x64 --arm64 --publish always"
+  "postinstall": "bun run electron-builder install-app-deps",
+  "build:windows": "bun run electron-builder --windows",
+  "build:mac": "bun run electron-builder --mac",
+  "build:linux": "bun run electron-builder --linux",
+  "build:x64": "bun run electron-builder --mac --windows --linux --x64",
+  "build:arm64": "bun run electron-builder --mac --windows --linux --arm64",
+  "release": "bun run electron-builder --mac --windows --linux --x64 --arm64 --publish always"
  },
  "keywords": [
   "electron",
@@ -45,10 +45,12 @@
   "auto-launch": "^5.0.6",
   "electron-context-menu": "^3.6.1",
   "electron-store": "^8.2.0",
+  "fastify": "^5.7.0",
+  "ip": "^2.0.1",
   "sass": "^1.97.0"
  },
  "devDependencies": {
-  "electron": "^35.7.5",
-  "electron-builder": "^25.1.8"
+  "electron": "^30.0.0",
+  "electron-builder": "^24.13.3"
  }
 }
