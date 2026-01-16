@@ -56,9 +56,15 @@ module.exports = class Injector {
  * need to be able to split our selectors and placeholder selectors into different files for neatness. Anyway this is just a
  * simple function to recombine multiple files and then let sass process that
  */
+let base;
+let mappings;
 function joinImports(app, file) {
-    const base = fs.readFileSync(path.join(app.getAppPath(), 'src', 'themes', BASE), 'utf-8');
-    const mappings = fs.readFileSync(path.join(app.getAppPath(), 'src', 'themes', MAPPINGS), 'utf-8');
+    if (!base) {
+        base = fs.readFileSync(path.join(app.getAppPath(), 'src', 'themes', BASE), 'utf-8');
+    }
+    if (!mappings) {
+        mappings = fs.readFileSync(path.join(app.getAppPath(), 'src', 'themes', MAPPINGS), 'utf-8');
+    }
     let contents = file.replace("@use 'base';", base);
     contents = contents.replace("@use 'mappings';", mappings);
 
