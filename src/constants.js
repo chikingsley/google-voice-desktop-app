@@ -28,6 +28,12 @@ const DEFAULT_SETTING_START_MINIMIZED = false;
 const DEFAULT_SETTING_EXIT_ON_CLOSE   = false;
 const DEFAULT_HIDE_DIALER_SIDEBAR     = false;
 
+// DOM Selectors (Mcp)
+// Note: These are subject to change by Google and may need updating.
+const SELECTOR_INPUT_PLACEHOLDER = 'Enter a name or number';
+const SELECTOR_INPUT_ARIA_LABEL  = 'Enter a name or number';
+const SELECTOR_MAKE_CALL_BUTTON  = 'div[aria-label="Make a call"]';
+
 module.exports = {
     // Strings
     APPLICATION_NAME, // Application name (displayed in various places)
@@ -37,7 +43,7 @@ module.exports = {
     APPLICATION_ICON_MEDIUM,               // Main application icon (medium) --sufficient size for Windows Taskbar
     APPLICATION_ICON_SMALL,                // Main application icon (small)  --sufficient size for system notification area
     APPLICATION_ICON_SMALL_WITH_INDICATOR, // Main application icon (small, with "notifications" indicator)
- 
+
     // URLs
     URL_GOOGLE_VOICE,           // Google Voice homepage
     URL_GITHUB_README,          // The "README.md" file on GitHub
@@ -53,5 +59,10 @@ module.exports = {
     DEFAULT_SETTING_THEME,           // Default theme to apply
     DEFAULT_SETTING_START_MINIMIZED, // Whether the application should start minimized to the system notification area
     DEFAULT_SETTING_EXIT_ON_CLOSE,   // Whether the application should terminate when the user closes the main application window
-    DEFAULT_HIDE_DIALER_SIDEBAR      // Whether the dialer sidebar should be hidden or not
+    DEFAULT_HIDE_DIALER_SIDEBAR,      // Whether the dialer sidebar should be hidden or not
+
+    // DOM Selectors
+    SELECTOR_INPUT_PLACEHOLDER,
+    SELECTOR_INPUT_ARIA_LABEL,
+    SELECTOR_MAKE_CALL_BUTTON
 };
