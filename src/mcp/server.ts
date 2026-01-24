@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Google Voice MCP Server
  *
@@ -9,33 +9,47 @@
  * execute operations.
  *
  * Usage:
- *   node src/mcp/server.js [--port=45677]
+ *   bun src/mcp/server.ts [--port=45677]
  */
 
-const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
-const {
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
     CallToolRequestSchema,
     ListToolsRequestSchema,
-} = require('@modelcontextprotocol/sdk/types.js');
-const http = require('http');
+} from '@modelcontextprotocol/sdk/types.js';
+import * as http from 'http';
 
 // Default port for the HTTP bridge
 const DEFAULT_PORT = 45677;
 
+interface ToolArgs {
+    limit?: number;
+    phone_number?: string;
+    message?: string;
+    query?: string;
+}
+
+interface UnreadResponse {
+    count: number;
+}
+
 class GoogleVoiceHTTPClient {
-    constructor(port = DEFAULT_PORT) {
+    private port: number;
+    private baseUrl: string;
+
+    constructor(port: number = DEFAULT_PORT) {
         this.port = port;
         this.baseUrl = `http://127.0.0.1:${port}`;
     }
 
-    async request(path, method = 'GET', body = null) {
+    async request<T>(path: string, method: string = 'GET', body: Record<string, string> | null = null): Promise<T> {
         return new Promise((resolve, reject) => {
-            const url = new URL(path, this.baseUrl);
-            const options = {
+            const urlObj = new URL(path, this.baseUrl);
+            const options: http.RequestOptions = {
                 hostname: '127.0.0.1',
                 port: this.port,
-                path: url.pathname + url.search,
+                path: urlObj.pathname + urlObj.search,
                 method,
                 headers: {
                     'Content-Type': 'application/json',
@@ -44,12 +58,12 @@ class GoogleVoiceHTTPClient {
 
             const req = http.request(options, (res) => {
                 let data = '';
-                res.on('data', chunk => { data += chunk; });
+                res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
                 res.on('end', () => {
                     try {
-                        resolve(JSON.parse(data));
+                        resolve(JSON.parse(data) as T);
                     } catch (e) {
-                        resolve({ error: 'Invalid response', raw: data });
+                        resolve({ error: 'Invalid response', raw: data } as T);
                     }
                 });
             });
@@ -65,48 +79,52 @@ class GoogleVoiceHTTPClient {
         });
     }
 
-    async getStatus() {
+    async getStatus(): Promise<unknown> {
         return this.request('/status');
     }
 
-    async getUnreadCount() {
-        const result = await this.request('/unread');
+    async getUnreadCount(): Promise<number> {
+        const result = await this.request<UnreadResponse>('/unread');
         return result.count;
     }
 
-    async getMessages(limit = 10) {
+    async getMessages(limit: number = 10): Promise<unknown> {
         return this.request(`/messages?limit=${limit}`);
     }
 
-    async getContacts(limit = 20) {
+    async getContacts(limit: number = 20): Promise<unknown> {
         return this.request(`/contacts?limit=${limit}`);
     }
 
-    async getCallHistory(limit = 10) {
+    async getCallHistory(limit: number = 10): Promise<unknown> {
         return this.request(`/calls?limit=${limit}`);
     }
 
-    async getVoicemails(limit = 10) {
+    async getVoicemails(limit: number = 10): Promise<unknown> {
         return this.request(`/voicemails?limit=${limit}`);
     }
 
-    async search(query) {
+    async search(query: string): Promise<unknown> {
         return this.request(`/search?q=${encodeURIComponent(query)}`);
     }
 
-    async sendSMS(phone, message) {
+    async sendSMS(phone: string, message: string): Promise<unknown> {
         return this.request('/send-sms', 'POST', { phone, message });
     }
 
-    async makeCall(phone) {
+    async makeCall(phone: string): Promise<unknown> {
         return this.request('/call', 'POST', { phone });
+    }
+
+    async dumpDOM(): Promise<unknown> {
+        return this.request('/dump-dom');
     }
 }
 
 /**
  * Create and configure the MCP server
  */
-function createMCPServer(port = DEFAULT_PORT) {
+function createMCPServer(port: number = DEFAULT_PORT): Server {
     const client = new GoogleVoiceHTTPClient(port);
 
     const server = new Server(
@@ -129,7 +147,7 @@ function createMCPServer(port = DEFAULT_PORT) {
                     name: 'gv_check_status',
                     description: 'Check if Google Voice Desktop app is running and user is logged in',
                     inputSchema: {
-                        type: 'object',
+                        type: 'object' as const,
                         properties: {},
                         required: [],
                     },
@@ -138,7 +156,7 @@ function createMCPServer(port = DEFAULT_PORT) {
                     name: 'gv_get_unread_count',
                     description: 'Get the number of unread messages and missed calls in Google Voice',
                     inputSchema: {
-                        type: 'object',
+                        type: 'object' as const,
                         properties: {},
                         required: [],
                     },
@@ -147,7 +165,7 @@ function createMCPServer(port = DEFAULT_PORT) {
                     name: 'gv_get_messages',
                     description: 'Get recent messages/conversations from Google Voice',
                     inputSchema: {
-                        type: 'object',
+                        type: 'object' as const,
                         properties: {
                             limit: {
                                 type: 'number',
@@ -161,7 +179,7 @@ function createMCPServer(port = DEFAULT_PORT) {
                     name: 'gv_send_sms',
                     description: 'Send an SMS text message via Google Voice',
                     inputSchema: {
-                        type: 'object',
+                        type: 'object' as const,
                         properties: {
                             phone_number: {
                                 type: 'string',
@@ -179,7 +197,7 @@ function createMCPServer(port = DEFAULT_PORT) {
                     name: 'gv_make_call',
                     description: 'Initiate a phone call via Google Voice. The call will ring on your linked devices.',
                     inputSchema: {
-                        type: 'object',
+                        type: 'object' as const,
                         properties: {
                             phone_number: {
                                 type: 'string',
@@ -193,7 +211,7 @@ function createMCPServer(port = DEFAULT_PORT) {
                     name: 'gv_get_call_history',
                     description: 'Get recent call history from Google Voice (incoming, outgoing, missed calls)',
                     inputSchema: {
-                        type: 'object',
+                        type: 'object' as const,
                         properties: {
                             limit: {
                                 type: 'number',
@@ -207,7 +225,7 @@ function createMCPServer(port = DEFAULT_PORT) {
                     name: 'gv_get_voicemails',
                     description: 'Get voicemail messages with transcripts from Google Voice',
                     inputSchema: {
-                        type: 'object',
+                        type: 'object' as const,
                         properties: {
                             limit: {
                                 type: 'number',
@@ -221,7 +239,7 @@ function createMCPServer(port = DEFAULT_PORT) {
                     name: 'gv_search',
                     description: 'Search for contacts or messages in Google Voice',
                     inputSchema: {
-                        type: 'object',
+                        type: 'object' as const,
                         properties: {
                             query: {
                                 type: 'string',
@@ -235,13 +253,22 @@ function createMCPServer(port = DEFAULT_PORT) {
                     name: 'gv_get_contacts',
                     description: 'Get recent contacts from Google Voice',
                     inputSchema: {
-                        type: 'object',
+                        type: 'object' as const,
                         properties: {
                             limit: {
                                 type: 'number',
                                 description: 'Maximum number of contacts to retrieve (default: 20)',
                             },
                         },
+                        required: [],
+                    },
+                },
+                {
+                    name: 'gv_dump_dom',
+                    description: 'Dump the DOM structure for debugging selectors. Use this to find the correct CSS selectors if other tools are not working.',
+                    inputSchema: {
+                        type: 'object' as const,
+                        properties: {},
                         required: [],
                     },
                 },
@@ -252,9 +279,10 @@ function createMCPServer(port = DEFAULT_PORT) {
     // Handle tool calls
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
+        const typedArgs = args as ToolArgs | undefined;
 
         try {
-            let result;
+            let result: unknown;
 
             switch (name) {
                 case 'gv_check_status':
@@ -266,40 +294,44 @@ function createMCPServer(port = DEFAULT_PORT) {
                     break;
 
                 case 'gv_get_messages':
-                    result = await client.getMessages(args?.limit || 10);
+                    result = await client.getMessages(typedArgs?.limit || 10);
                     break;
 
                 case 'gv_send_sms':
-                    if (!args?.phone_number || !args?.message) {
+                    if (!typedArgs?.phone_number || !typedArgs?.message) {
                         throw new Error('phone_number and message are required');
                     }
-                    result = await client.sendSMS(args.phone_number, args.message);
+                    result = await client.sendSMS(typedArgs.phone_number, typedArgs.message);
                     break;
 
                 case 'gv_make_call':
-                    if (!args?.phone_number) {
+                    if (!typedArgs?.phone_number) {
                         throw new Error('phone_number is required');
                     }
-                    result = await client.makeCall(args.phone_number);
+                    result = await client.makeCall(typedArgs.phone_number);
                     break;
 
                 case 'gv_get_call_history':
-                    result = await client.getCallHistory(args?.limit || 10);
+                    result = await client.getCallHistory(typedArgs?.limit || 10);
                     break;
 
                 case 'gv_get_voicemails':
-                    result = await client.getVoicemails(args?.limit || 10);
+                    result = await client.getVoicemails(typedArgs?.limit || 10);
                     break;
 
                 case 'gv_search':
-                    if (!args?.query) {
+                    if (!typedArgs?.query) {
                         throw new Error('query is required');
                     }
-                    result = await client.search(args.query);
+                    result = await client.search(typedArgs.query);
                     break;
 
                 case 'gv_get_contacts':
-                    result = await client.getContacts(args?.limit || 20);
+                    result = await client.getContacts(typedArgs?.limit || 20);
+                    break;
+
+                case 'gv_dump_dom':
+                    result = await client.dumpDOM();
                     break;
 
                 default:
@@ -309,7 +341,7 @@ function createMCPServer(port = DEFAULT_PORT) {
             return {
                 content: [
                     {
-                        type: 'text',
+                        type: 'text' as const,
                         text: JSON.stringify(result, null, 2),
                     },
                 ],
@@ -318,9 +350,9 @@ function createMCPServer(port = DEFAULT_PORT) {
             return {
                 content: [
                     {
-                        type: 'text',
+                        type: 'text' as const,
                         text: JSON.stringify({
-                            error: error.message,
+                            error: (error as Error).message,
                             tool: name,
                             hint: 'Make sure the Google Voice Desktop app is running.',
                         }),
@@ -336,7 +368,7 @@ function createMCPServer(port = DEFAULT_PORT) {
 /**
  * Run the MCP server
  */
-async function main() {
+async function main(): Promise<void> {
     // Parse command line arguments
     let port = DEFAULT_PORT;
     for (const arg of process.argv.slice(2)) {

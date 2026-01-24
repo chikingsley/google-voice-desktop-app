@@ -10,8 +10,7 @@ const Store = require('electron-store');
 const Url = require('url');
 
 // MCP Server imports
-const GoogleVoiceAPI = require('./mcp/google-voice-api');
-const HTTPBridge = require('./mcp/http-bridge');
+const { GoogleVoiceAPI, HTTPBridge } = require('./mcp/index.js');
 
 // Constants
 const store = new Store();
