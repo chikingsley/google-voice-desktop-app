@@ -25,6 +25,7 @@
  "scripts": {
   "start": "electron .",
   "mcp": "node src/mcp/server.js",
+  "gv": "node src/mcp/cli.js",
   "postinstall": "electron-builder install-app-deps",
   "build:windows": "electron-builder --windows",
   "build:mac": "electron-builder --mac",
