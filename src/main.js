@@ -9,6 +9,10 @@ const CSSInjector = require('./utils/cssInjector');
 const Store = require('electron-store');
 const Url = require('url');
 
+// MCP Server imports
+const GoogleVoiceAPI = require('./mcp/google-voice-api');
+const HTTPBridge = require('./mcp/http-bridge');
+
 // Constants
 const store = new Store();
 const appPath = app.getAppPath();
@@ -27,6 +31,8 @@ let cssInjector;
 let tray;
 let win;            // The main application window
 let settingsWindow; // When not null, the "Settings" window, which is currently open
+let googleVoiceAPI; // Google Voice DOM API for MCP tools
+let httpBridge;     // HTTP bridge for MCP server communication
 
 // Only one instance of the app should run
 if (!app.requestSingleInstanceLock()) {
@@ -200,6 +206,17 @@ function createWindow() {
     tray = createTray(iconTray, constants.APPLICATION_NAME);
 
     badgeGenerator = new BadgeGenerator(win);
+
+    // Initialize the Google Voice API and HTTP bridge for MCP integration
+    googleVoiceAPI = new GoogleVoiceAPI(win);
+    httpBridge = new HTTPBridge(googleVoiceAPI);
+    httpBridge.start().then((port) => {
+        console.log(`MCP HTTP Bridge started on port ${port}`);
+        console.log(`To use with Claude, add this to your MCP config:`);
+        console.log(`  "google-voice": { "command": "node", "args": ["${path.join(appPath, 'src', 'mcp', 'server.js')}"] }`);
+    }).catch((err) => {
+        console.error('Failed to start MCP HTTP Bridge:', err);
+    });
 
     // Handle window open requests (e.g., links with target="_blank")
     // Replaces deprecated 'new-window' event

@@ -24,6 +24,7 @@
  },
  "scripts": {
   "start": "electron .",
+  "mcp": "node src/mcp/server.js",
   "postinstall": "electron-builder install-app-deps",
   "build:windows": "electron-builder --windows",
   "build:mac": "electron-builder --mac",
@@ -42,6 +43,7 @@
  "author": "jllankfo@ncsu.edu",
  "license": "ISC",
  "dependencies": {
+  "@modelcontextprotocol/sdk": "^1.25.3",
   "auto-launch": "^5.0.6",
   "electron-context-menu": "^3.6.1",
   "electron-store": "^8.2.0",
