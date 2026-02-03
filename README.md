@@ -1,78 +1,151 @@
-## Why
-I'm annoyed at the lack of desktop app for voice, like hangouts had.
+# Voice Desktop - Native macOS App for Google Voice
 
-## What does it do
-It just lets you keep voice open without a chrome browser. It will also check the dom for notifications and display a badge in the task bar and closing the app will send it to a tray instead of closing.
+A native macOS application that wraps Google Voice with custom themes, notifications, and agent automation capabilities.
 
-## Supported Operating Systems
-Currently supports both OSX, Windows 10 & Linux.
+![Voice Desktop](screenshots/dracula.png)
 
-Questions? Ideas? Join us in discord https://discord.gg/3SSS6vkKET
+## Features
+
+- **Native macOS App**: Built with SwiftUI targeting macOS 14+
+- **Custom Themes**: Dracula, Solar, Minty, Cerulean, DarkPlus, or default Google Voice theme
+- **Menu Bar Integration**: Quick access via menu bar with notification indicator
+- **Dock Badge**: Shows unread notification count
+- **Notification Support**: Desktop notifications with dock icon bounce
+- **Launch at Login**: Start the app automatically when you log in
+- **Agent API**: REST API for programmatic control (make calls, send SMS)
+- **Keyboard Shortcuts**: Cmd+R to reload, Cmd+Shift+O to open in browser, Cmd+, for settings
 
 ## Installation
-Go to the [Releases Page](https://github.com/Jerrkawz/google-voice-desktop-app/releases) and download the release for your OS.
 
-Simply uzip and drag into the applications folder (mac) or run the executable (windows) or run the app image (ubuntu)
+### Option 1: Build from Source
 
-**Mac Note: The mac version is unsigned, so you will have to click "Open Anyway" after running, or go to Settings > Security & Privacy > General > Open Anyway. Sorry not paying for a dev license just for this**
+1. Open `VoiceDesktop.xcworkspace` in Xcode
+2. Select the VoiceDesktop scheme
+3. Build and run (Cmd+R)
 
+### Option 2: Download Release
 
-**Linux Note: You will have to make the AppImage executable in order to run it. Right Click > Properties > Permissions > Allow Executing file as a program**
-
-## Customize
-You can change settings, apply themes and other things in the customization page. Go to `Electron > Settings` on Mac in the global menu bar, or `File > Settings` on windows. If you've hidden the menu bar you can also access the settings from the system tray.
-
-**Windows Settings**
-
-![Windows Settings](/screenshots/windowsSettings.png?raw=true)
-
-**Mac Settings**
-
-![Mac Settings](/screenshots/macSettings.png?raw=true)
-
-**System Tray Settings**
-
-![System Tray Settings](/screenshots/systemTraySettings.png?raw=true)
+Download the latest release from the [Releases](https://github.com/Jerrkawz/google-voice-desktop-app/releases) page.
 
 ## Themes
-The latest version now supports custom themes, which can be set in the Settings dialog.
 
-Not only themes but also a system for themeing! If you want to create your own theme and contribute back to the project you can do that [here](THEMES.md).
+Choose from several built-in themes:
 
-## Run From Source
-`git clone git@github.com:Jerrkawz/google-voice-desktop-app.git`
+| Theme | Description |
+|-------|-------------|
+| Default | Original Google Voice appearance |
+| Dracula | Popular dark theme with purple accents |
+| Solar | Solarized dark color scheme |
+| Minty | Light and refreshing green tones |
+| Cerulean | Blue-themed interface |
+| DarkPlus | VS Code inspired dark theme |
 
-`npm install -g yarn`
+Access themes via **Settings → Appearance**.
 
-`yarn install`
+## Agent API
 
-`yarn start`
+Voice Desktop includes a built-in REST API server for programmatic control. This enables AI agents and automation scripts to interact with Google Voice.
 
-To build yourself you can run
-`yarn run build:windows` or `yarn run build:mac` or `yarn run build:linux`
+### Endpoints
 
-## Screenshots
+| Method | Endpoint | Description | Body |
+|--------|----------|-------------|------|
+| GET | `/health` | Health check | - |
+| GET | `/status` | Get app status (notifications, theme) | - |
+| POST | `/call` | Initiate a phone call | `{"number": "+15551234567"}` |
+| POST | `/sms` | Send an SMS message | `{"number": "+15551234567", "text": "Hello"}` |
+| POST | `/reload` | Reload the web view | - |
+| POST | `/theme` | Change the theme | `{"theme": "dracula"}` |
 
-**Main window:**
+### Example Usage
 
-![Windows](/screenshots/windows.png?raw=true)
+```bash
+# Check health
+curl http://localhost:3000/health
 
-**Dracula theme:**
+# Get status
+curl http://localhost:3000/status
 
-![Dracula](/screenshots/dracula.png?raw=true)
+# Make a call
+curl -X POST http://localhost:3000/call \
+  -H "Content-Type: application/json" \
+  -d '{"number": "+15551234567"}'
 
-**Solar theme:**
+# Send SMS
+curl -X POST http://localhost:3000/sms \
+  -H "Content-Type: application/json" \
+  -d '{"number": "+15551234567", "text": "Hello from Voice Desktop!"}'
+```
 
-![Solar](/screenshots/solar.png?raw=true)
+The default port is 3000. Configure it in **Settings → Agent**.
 
-**Minty theme:**
+## Settings
 
-![Minty](/screenshots/minty.png?raw=true)
+Access settings via **Voice Desktop → Settings** (Cmd+,):
 
-**Cerulean theme:**
+### General
 
-![Cerulean](/screenshots/cerulean.png?raw=true)
+- **Start at Login**: Automatically launch when you log in
+- **Start Minimized**: Start hidden in the menu bar
+- **Exit on Close**: Quit the app when window is closed
 
-## Attributions
-- Dracula: https://github.com/dracula/dracula-theme
-- Solar / Minty / Cerulean: https://bootswatch.com/
+### Appearance
+
+- **Theme**: Select your preferred color scheme
+- **Hide Dialer Sidebar**: Hide the sidebar in dialer view
+- **Zoom**: Adjust the zoom level (50% - 200%)
+
+### Agent
+
+- **WebSocket Port**: Configure the REST API server port
+
+## Project Structure
+
+```text
+VoiceDesktop/
+├── VoiceDesktop.xcworkspace/     # Open this in Xcode
+├── VoiceDesktop/                  # Main app target
+│   ├── VoiceDesktopApp.swift     # App entry point with scenes
+│   └── Assets.xcassets/          # App icons
+├── VoiceDesktopPackage/          # Feature code (SPM)
+│   ├── Sources/VoiceDesktopFeature/
+│   │   ├── Models/               # AppState, ThemeManager, NotificationObserver
+│   │   ├── Views/                # ContentView, GoogleVoiceWebView, SettingsView
+│   │   ├── Agent/                # AgentBridge REST API
+│   │   └── Services/             # LaunchAtLoginManager
+│   └── Package.swift             # Dependencies (FlyingFox)
+└── Config/                        # Build configuration
+    └── VoiceDesktop.entitlements # Permissions
+```
+
+## Requirements
+
+- macOS 14.0 or later
+- Xcode 16+ (for building)
+
+## Dependencies
+
+- [FlyingFox](https://github.com/swhitty/FlyingFox) - Lightweight HTTP server for the Agent API
+
+## Privacy & Security
+
+This app:
+
+- Loads Google Voice in a WKWebView
+- Requires network access for Google Voice and the Agent API
+- Requests microphone permission for voice calls
+- Stores preferences locally via UserDefaults
+- Does not collect or transmit any personal data
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
+
+## License
+
+MIT License - See LICENSE file for details.
+
+## Credits
+
+- Original Electron version by [Jerrkawz](https://github.com/Jerrkawz)
+- Native macOS conversion using modern SwiftUI and Swift 6
