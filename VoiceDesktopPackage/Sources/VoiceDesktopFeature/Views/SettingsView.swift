@@ -93,30 +93,34 @@ public struct SettingsView: View {
         Form {
             Section {
                 HStack {
-                    Text("WebSocket Port")
+                    Text("Agent API Port")
                     Spacer()
                     TextField("Port", value: $agentPort, format: .number)
                         .frame(width: 80)
                         .textFieldStyle(.roundedBorder)
                 }
                 
-                Text("Agents can connect via ws://localhost:\(agentPort)/agent")
+                Text("Agents can connect via http://localhost:\(agentPort)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } header: {
-                Text("Agent Server")
+                Text("Local API Server")
             }
             
             Section {
-                Text("The agent server allows external programs to control Voice Desktop via WebSocket.")
+                Text("The agent server exposes a local REST API for controlling Voice Desktop.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 
-                Text("Commands: makeCall, sendSMS, getStatus")
+                Text("Endpoints: GET /health, GET /status, POST /call, POST /sms, POST /reload, POST /theme")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 
-                Text("Events: callInitiated, messageReceived, incomingCall, etc.")
+                Text("Call responses: queued, dialer_open, call_button_clicked, failed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                
+                Text("The server listens on localhost only.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } header: {

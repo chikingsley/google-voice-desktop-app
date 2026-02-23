@@ -8,15 +8,21 @@ struct VoiceDesktopApp: App {
     @State private var themeManager = ThemeManager()
     @State private var notificationObserver = NotificationObserver()
     @State private var agentBridge: AgentBridge
-    @State private var agentStarted = false
     
     @AppStorage("startMinimized") private var startMinimized: Bool = false
     @AppStorage("exitOnClose") private var exitOnClose: Bool = false
     @AppStorage("agentPort") private var agentPort: Int = 3000
     
     init() {
-        // Initialize on main actor
-        _agentBridge = State(initialValue: AgentBridge(port: 3000))
+        let storedPort = UserDefaults.standard.object(forKey: "agentPort") as? Int ?? 3000
+        let validPort = (1...65535).contains(storedPort) ? storedPort : 3000
+        
+        // Keep persisted setting valid so UI and server stay in sync.
+        if storedPort != validPort {
+            UserDefaults.standard.set(validPort, forKey: "agentPort")
+        }
+        
+        _agentBridge = State(initialValue: AgentBridge(port: validPort))
     }
     
     var body: some Scene {
@@ -36,15 +42,22 @@ struct VoiceDesktopApp: App {
                     }
                 }
                 
-                // Start agent bridge
-                if !agentStarted {
-                    agentStarted = true
-                    Task { @MainActor in
-                        do {
-                            try await agentBridge.start()
-                        } catch {
-                            print("Failed to start agent bridge: \(error)")
-                        }
+                Task { @MainActor in
+                    guard !agentBridge.isRunning else { return }
+                    do {
+                        try await agentBridge.start()
+                    } catch {
+                        print("Failed to start agent bridge: \(error)")
+                    }
+                }
+            }
+            .onChange(of: agentPort) { _, newPort in
+                Task { @MainActor in
+                    do {
+                        try await agentBridge.updatePort(newPort)
+                    } catch {
+                        print("Failed to update agent bridge port: \(error)")
+                        agentPort = agentBridge.port
                     }
                 }
             }
@@ -114,7 +127,7 @@ struct VoiceDesktopApp: App {
             }
             
             if agentBridge.isRunning {
-                Text("Agent server: http://localhost:\(agentPort)")
+                Text("Agent server: http://localhost:\(agentBridge.port)")
                     .font(.caption)
                 Divider()
             }

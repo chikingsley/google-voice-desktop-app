@@ -169,7 +169,7 @@ public class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, W
     
     // Handle permission requests for microphone
     @MainActor
-    public func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType) async -> WKPermissionDecision {
+    public func webView(_ webView: WKWebView, decideMediaCapturePermissionsFor origin: WKSecurityOrigin, initiatedBy frame: WKFrameInfo, type: WKMediaCaptureType) async -> WKPermissionDecision {
         // Allow microphone for Google Voice
         if origin.host == "voice.google.com" {
             return .grant

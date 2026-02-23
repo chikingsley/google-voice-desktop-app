@@ -1,6 +1,6 @@
 import Foundation
 
-/// Commands that can be sent from an agent to the app via WebSocket
+/// Transport-agnostic agent commands used by integrations.
 public enum AgentCommand: Codable, Sendable {
     case makeCall(number: String)
     case sendSMS(number: String, text: String)

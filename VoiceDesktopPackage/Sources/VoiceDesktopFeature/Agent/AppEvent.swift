@@ -1,6 +1,6 @@
 import Foundation
 
-/// Events that can be sent from the app to an agent via WebSocket
+/// Transport-agnostic app events used by integrations.
 public enum AppEvent: Codable, Sendable {
     case connected
     case callInitiated(number: String)

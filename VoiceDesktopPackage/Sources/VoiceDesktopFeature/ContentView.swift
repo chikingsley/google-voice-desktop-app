@@ -42,6 +42,11 @@ public struct ContentView: View {
     
     @State private var webView: WKWebView?
     
+    private struct CallClickAttemptResult {
+        let clicked: Bool
+        let detail: String
+    }
+    
     public init(
         appState: AppState,
         themeManager: ThemeManager,
@@ -148,7 +153,7 @@ public struct ContentView: View {
     
     /// Performs a call using Google Voice's URL-based calling API
     @MainActor
-    private func performCall(number: String, in webView: WKWebView) async -> Bool {
+    private func performCall(number: String, in webView: WKWebView) async -> CallCommandResult {
         debugLog("📞 performCall started with number: \(number)")
         
         // Clean the number - remove spaces, dashes, parentheses, and other non-digits
@@ -157,7 +162,11 @@ public struct ContentView: View {
         
         guard !cleanNumber.isEmpty else {
             debugLog("❌ Clean number is empty!")
-            return false
+            return CallCommandResult(
+                status: .failed,
+                number: number,
+                message: "No digits found in number"
+            )
         }
         
         // Add country code if not present (assume US +1)
@@ -178,80 +187,172 @@ public struct ContentView: View {
         
         guard let url = URL(string: callURL) else {
             debugLog("❌ Failed to create URL!")
-            return false
+            return CallCommandResult(
+                status: .failed,
+                number: fullNumber,
+                message: "Invalid call URL"
+            )
         }
         
         debugLog("🚀 Loading URL in WebView...")
         webView.load(URLRequest(url: url))
         debugLog("✅ URL load request sent!")
         
-        // Schedule button click after delay (fire-and-forget)
-        scheduleCallButtonClick(in: webView)
+        let dialerReady = await waitForDialerReady(in: webView)
+        guard dialerReady else {
+            debugLog("⏳ Dialer UI still loading after timeout, leaving request queued")
+            return CallCommandResult(
+                status: .queued,
+                number: fullNumber,
+                message: "Call UI still loading"
+            )
+        }
         
-        return true
+        debugLog("📲 Dialer ready, attempting call button click with retries")
+        let clickResult = await clickCallButtonWithRetry(in: webView)
+        if clickResult.clicked {
+            debugLog("✅ Call button clicked: \(clickResult.detail)")
+            return CallCommandResult(
+                status: .callButtonClicked,
+                number: fullNumber,
+                message: clickResult.detail
+            )
+        }
+        
+        debugLog("⚠️ Dialer opened but call button was not clicked: \(clickResult.detail)")
+        return CallCommandResult(
+            status: .dialerOpen,
+            number: fullNumber,
+            message: clickResult.detail
+        )
     }
     
-    /// Schedules a click on the Call button after a delay
+    /// Waits for the call UI to become ready before clicking
     @MainActor
-    private func scheduleCallButtonClick(in webView: WKWebView) {
-        debugLog("📋 Scheduling call button click...")
+    private func waitForDialerReady(
+        in webView: WKWebView,
+        timeout: TimeInterval = 10.0,
+        pollInterval: TimeInterval = 0.4
+    ) async -> Bool {
+        let readyScript = """
+        (function() {
+            const href = window.location.href || '';
+            const ready = document.readyState === 'complete' || document.readyState === 'interactive';
+            const inCallsView = href.indexOf('/calls') >= 0;
+            const controls = Array.from(document.querySelectorAll('button,[role="button"]'));
+            const hasCallControls = controls.some((el) => {
+                const text = ((el.textContent || el.getAttribute('aria-label') || '') + '').trim().toLowerCase();
+                return text.indexOf('call') >= 0 || text.indexOf('dial') >= 0;
+            });
+            return !!(ready && inCallsView && hasCallControls);
+        })();
+        """
         
-        // Use DispatchQueue for reliable delayed execution
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak webView] in
-            guard let webView = webView else {
-                debugLog("❌ WebView was deallocated")
-                return
+        let maxAttempts = max(1, Int(timeout / pollInterval))
+        for attempt in 1...maxAttempts {
+            if let isReady = await evaluateJavaScriptBoolean(readyScript, in: webView), isReady {
+                debugLog("✅ Dialer ready after \(attempt) attempt(s)")
+                return true
             }
             
-            debugLog("🖱️ Attempting to click Call button...")
+            let sleepNanos = UInt64(max(0.1, pollInterval) * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: sleepNanos)
+        }
+        
+        return false
+    }
+    
+    /// Retries clicking call controls to handle slow UI transitions
+    @MainActor
+    private func clickCallButtonWithRetry(
+        in webView: WKWebView,
+        maxAttempts: Int = 8,
+        pollInterval: TimeInterval = 0.5
+    ) async -> CallClickAttemptResult {
+        let clickScript = """
+        (function() {
+            const visible = (el) => !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length));
+            const controls = Array.from(document.querySelectorAll('button,[role="button"]'));
+            const keywords = ['call', 'place call', 'start call', 'dial'];
             
-            // JavaScript to find and click the Call button
-            let clickScript = """
-            (function() {
-                // Try finding by text content first
-                var buttons = document.querySelectorAll('button');
-                for (var i = 0; i < buttons.length; i++) {
-                    var btn = buttons[i];
-                    var text = btn.textContent || btn.innerText;
-                    if (text.trim() === 'Call') {
-                        btn.click();
-                        return 'clicked-by-text: ' + text;
-                    }
+            for (const el of controls) {
+                const text = ((el.textContent || el.getAttribute('aria-label') || '') + '').trim().toLowerCase();
+                if (!text || el.disabled || !visible(el)) {
+                    continue;
                 }
-                
-                // Try multiple selectors for the Call button
-                var selectors = [
-                    'button[data-action="call"]',
-                    'button.call-button',
-                    '[role="dialog"] button:last-child',
-                    'button[jsname]'
-                ];
-                
-                for (var j = 0; j < selectors.length; j++) {
-                    try {
-                        var el = document.querySelector(selectors[j]);
-                        if (el) {
-                            el.click();
-                            return 'clicked-selector: ' + selectors[j];
-                        }
-                    } catch(e) {}
+                if (keywords.some((keyword) => text === keyword || text.indexOf(keyword) >= 0)) {
+                    el.click();
+                    return 'clicked:text:' + text;
                 }
-                
-                // Return info about what buttons exist
-                var btnInfo = [];
-                for (var k = 0; k < buttons.length; k++) {
-                    btnInfo.push(buttons[k].textContent.trim().substring(0, 20));
-                }
-                return 'no-call-button. Found buttons: ' + btnInfo.join(', ');
-            })();
-            """
+            }
             
-            webView.evaluateJavaScript(clickScript) { result, error in
+            const selectors = [
+                'button[data-action=\"call\"]',
+                '[role=\"dialog\"] button:last-child',
+                'button[jsname]'
+            ];
+            
+            for (const selector of selectors) {
+                const el = document.querySelector(selector);
+                if (el && !el.disabled && visible(el)) {
+                    el.click();
+                    return 'clicked:selector:' + selector;
+                }
+            }
+            
+            const sample = controls
+                .map((el) => ((el.textContent || el.getAttribute('aria-label') || '') + '').trim().toLowerCase())
+                .filter((text) => text.length > 0)
+                .slice(0, 8)
+                .join('|');
+            return 'not-found:' + sample;
+        })();
+        """
+        
+        var lastDetail = "Call button not found"
+        for attempt in 1...max(1, maxAttempts) {
+            if let clickResult = await evaluateJavaScriptString(clickScript, in: webView) {
+                if clickResult.hasPrefix("clicked:") {
+                    return CallClickAttemptResult(clicked: true, detail: clickResult)
+                }
+                
+                lastDetail = clickResult
+                debugLog("ℹ️ Call click attempt \(attempt) did not click: \(clickResult)")
+            }
+            
+            let sleepNanos = UInt64(max(0.1, pollInterval) * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: sleepNanos)
+        }
+        
+        return CallClickAttemptResult(clicked: false, detail: lastDetail)
+    }
+    
+    /// Executes JavaScript and returns a Bool value for polling checks
+    @MainActor
+    private func evaluateJavaScriptBoolean(_ script: String, in webView: WKWebView) async -> Bool? {
+        await withCheckedContinuation { continuation in
+            webView.evaluateJavaScript(script) { result, error in
                 if let error = error {
-                    debugLog("❌ Click error: \(error.localizedDescription)")
-                } else {
-                    debugLog("✅ Click result: \(String(describing: result))")
+                    debugLog("❌ JavaScript evaluation error: \(error.localizedDescription)")
+                    continuation.resume(returning: nil)
+                    return
                 }
+                continuation.resume(returning: result as? Bool)
+            }
+        }
+    }
+    
+    /// Executes JavaScript and returns a String value for click diagnostics
+    @MainActor
+    private func evaluateJavaScriptString(_ script: String, in webView: WKWebView) async -> String? {
+        await withCheckedContinuation { continuation in
+            webView.evaluateJavaScript(script) { result, error in
+                if let error = error {
+                    debugLog("❌ JavaScript evaluation error: \(error.localizedDescription)")
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: result as? String)
             }
         }
     }

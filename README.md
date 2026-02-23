@@ -52,10 +52,12 @@ Voice Desktop includes a built-in REST API server for programmatic control. This
 |--------|----------|-------------|------|
 | GET | `/health` | Health check | - |
 | GET | `/status` | Get app status (notifications, theme) | - |
-| POST | `/call` | Initiate a phone call | `{"number": "+15551234567"}` |
+| POST | `/call` | Initiate assisted call flow in Google Voice UI | `{"number": "+15551234567"}` |
 | POST | `/sms` | Send an SMS message | `{"number": "+15551234567", "text": "Hello"}` |
 | POST | `/reload` | Reload the web view | - |
 | POST | `/theme` | Change the theme | `{"theme": "dracula"}` |
+
+`POST /call` returns JSON status values: `queued`, `dialer_open`, `call_button_clicked`, or `failed`.
 
 ### Example Usage
 
@@ -78,6 +80,7 @@ curl -X POST http://localhost:3000/sms \
 ```
 
 The default port is 3000. Configure it in **Settings → Agent**.
+The server listens on `localhost` only.
 
 ## Settings
 
@@ -97,7 +100,7 @@ Access settings via **Voice Desktop → Settings** (Cmd+,):
 
 ### Agent
 
-- **WebSocket Port**: Configure the REST API server port
+- **Agent API Port**: Configure the local REST API server port
 
 ## Project Structure
 
